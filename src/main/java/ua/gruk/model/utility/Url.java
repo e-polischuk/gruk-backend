@@ -5,16 +5,19 @@ import java.net.*;
 import java.util.*;
 
 /**
+ * Any URL is considered as @baseUrl and optional set of @params 
+ * which (if they exists) are concatenated to baseUrl, starting 
+ * with char '?'. Each key(name) of @params has to be unique!
+ * URL representation example(format):
+ * http://www.example.com/context?key1=value1&key2=value2
+ *  
  * This mutable class provides simple, useful and safe API
  * for URL parsing, comparison, representing and interactive
- * handling of any parts - baseUrl or Url-parameters. 
+ * handling of any parts - @baseUrl or @params.
  * It handles in a proper way as decoded as encoded URL-strings 
  * (representation of URL-string doesn't matter), as this class 
  * also has two corresponding methods. Also an parameters order
  * of parsed URL-string doesn't matter for this class.
- * 
- * Pay attention: 
- * Supposed that each Key(Name) of URL-parameters is unique!
  *  
  * Additionally, can be run main method which includes some 
  * basic tests for this class. Also you could add your tests 
@@ -30,20 +33,21 @@ import java.util.*;
  */
 public class Url {
 	/**
-	 * This class considers any URL as @baseUrl and optional
-	 * set of parameters - @params that (if they exists) are 
-	 * concatenated to baseUrl and started with char '?'.
-	 * URL representation example(format):
-	 * http://www.example.com/context?key1=value1&key2=value2
+	 * A first part of URL, it's sub parts are joined by '/'
+	 * and it ends before starting of parameters - char '?'.
+	 * Example of @baseUrl - http://www.example.com/context
 	 */
 	private String baseUrl = "";
 	/**
-	 * All URL parameters are hold in an origin order. But from
-	 * a viewpoint of the Url-essence an order of parameters 
-	 * doesn't matter, so methods equals and hashCode account this 
-	 * by params sorting. Therefore this class has a single-valued 
-	 * understanding of URL regardless it's representation (params
-	 * can be in any order).
+	 * String-representation of @params starts with '?' and 
+	 * all param-pairs (key=value) are joined by '&'.
+	 * For example - ?key1=value1&key2=value2
+	 * All URL parameters are hold in an origin order. But 
+	 * from a viewpoint of the Url-essence the @params order 
+	 * doesn't matter, so methods equals() and hashCode() 
+	 * account this by @params sorting. Therefore Url-class 
+	 * has a single-valued understanding of URL regardless 
+	 * it's representation (@params can be in any order).
 	 */
 	private final Map<String, String> params = new LinkedHashMap<>();
 	
@@ -55,30 +59,28 @@ public class Url {
 	
 	/**
 	 * An instantiation method instead of constructor.
-	 * 
 	 * @param url - an optional flexible parameter can be used as:
 	 * 		1) without - @of() returns an object with empty baseUrl and params;
 	 * 		2) one param - @of(url) where url means a string representation of
 	 * 			any full URL, which can be decode or encode, with or without
 	 * 			params whose order doesn't matter;
 	 * 		3) two or more params - @of(parts, of, baseUrl) will construct just
-	 * 			baseUrl, by join all inputed parameters with '/'.
+	 * 			baseUrl by join all inputed parameters with '/'.
 	 * @return an instance of this class that is initialized already.
 	 */
 	public static Url of(String...url) {
-		Url parsedUrl = new Url();
-		if (url.length == 1 && !url[0].trim().isEmpty()) {
+		Url parsed = new Url();
+		if (url.length == 1) {
 			String[] separ = decode(url[0]).split("\\?");
-			parsedUrl.setBaseUrl(separ[0]);
-			if (separ.length > 1) {
-				for (String prm : separ[1].split("&")) {
-					int i = prm.indexOf("=");
-					int j = i < 0 ? prm.length() - 1 : i + 1;
-					parsedUrl.setParam(i < 0 ? prm : prm.substring(0, i), j < 0 ? "" : prm.substring(j));
+			if (separ.length > 0 ) parsed.setBaseUrl(separ[0]);
+			if (separ.length > 1) 
+				for (String p: separ[1].split("&")) {
+					int i = p.indexOf("=");
+					int j = i < 0 ? p.length() - 1 : i + 1;
+					parsed.setParam(i < 0 ? p : p.substring(0, i), j < 0 ? "" : p.substring(j));
 				}
-			}
-		} else if (url.length > 1) parsedUrl.setBaseUrl(url);
-		return parsedUrl;
+		} else if (url.length > 1) parsed.setBaseUrl(url);
+		return parsed;
 	}
 	
 	public String getBaseUrl() {
@@ -95,7 +97,7 @@ public class Url {
 	
 	public Url setBaseUrl(String...baseUrl) {
 		StringBuilder sb = new StringBuilder();
-		int i = baseUrl == null ? 0 : baseUrl.length;
+		int i = baseUrl.length;
 		for (String part : baseUrl) sb.append(decode(part)).append(--i > 0 ? '/' : "");
 		this.baseUrl = sb.toString();
 		return this;
@@ -123,11 +125,10 @@ public class Url {
 	
 	public String paramsToString(boolean...isEncode) {
 		StringBuilder sb = new StringBuilder();
-		params.keySet().forEach(key -> sb
-			.append(sb.length() > 0 ? '&' : '?')
+		for (String key : params.keySet()) sb.append(sb.length() > 0 ? '&' : '?')
 			.append(isEncode.length > 0 && isEncode[0] ? encode(key) : key)
 			.append(key.trim().isEmpty() ? "" : '=')
-			.append(isEncode.length > 0 && isEncode[0] ? encode(getParam(key)) : getParam(key)));
+			.append(isEncode.length > 0 && isEncode[0] ? encode(getParam(key)) : getParam(key));
 		return sb.toString();
 	}
 	
@@ -148,11 +149,11 @@ public class Url {
 
 	@Override
 	public String toString() {
-		return this.baseUrl + this.paramsToString();
+		return baseUrl.concat(paramsToString());
 	}
 	
 	public String toEncodeString(boolean...all) {
-		return all.length > 0 && all[0] ? encode(toString()) : baseUrl + paramsToString(true);
+		return all.length > 0 && all[0] ? encode(toString()) : baseUrl.concat(paramsToString(true));
 	}
 
 	public static String decode(String url) {
@@ -231,6 +232,7 @@ public class Url {
 		System.out.println("From Decode: " + fromDecode);
 		System.out.println("fromEncode.equals(fromDecode)): " + fromEncode.equals(fromDecode));
 		System.out.println("fromEncode.hashCode()==fromDecode.hashCode(): " + (fromEncode.hashCode() == fromDecode.hashCode()));
+		System.out.println(Url.of(fromDecode.paramsToString(true)));
 		
 		System.out.println("\n5) Test for removing and adding of URL-parameters:");
 		fromEncode.removeAllParams();
